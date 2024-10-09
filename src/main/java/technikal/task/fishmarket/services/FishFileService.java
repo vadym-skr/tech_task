@@ -3,38 +3,33 @@ package technikal.task.fishmarket.services;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import technikal.task.fishmarket.models.Fish;
 import technikal.task.fishmarket.models.FishFile;
 import technikal.task.fishmarket.repository.FishFileRepository;
+import technikal.task.fishmarket.utils.FileUtil;
 import technikal.task.fishmarket.utils.exception.CustomUncheckedException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+
 @Service
 public class FishFileService {
 
-    private static final Logger logger = LoggerFactory.getLogger(FishFileService.class);
+    private static final Logger logger = LoggerFactory.getLogger(FishService.class);
 
     private final FishFileRepository fishFileRepository;
-
-    @Value("${image.upload.dir}")
-    private String uploadDir;
+    private final FileUtil fileUtil;
 
     @Autowired
-    public FishFileService(FishFileRepository fishFileRepository) {
+    public FishFileService(FishFileRepository fishFileRepository, FileUtil fileUtil) {
         this.fishFileRepository = fishFileRepository;
+        this.fileUtil = fileUtil;
     }
 
     @Transactional
@@ -43,8 +38,8 @@ public class FishFileService {
 
         try {
             for (MultipartFile file : files) {
-                String storageFileName = createUniqueFileName(catchDate, file.getOriginalFilename());
-                saveFile(file, storageFileName);
+                String storageFileName = fileUtil.createUniqueFileName(catchDate, file.getOriginalFilename());
+                fileUtil.saveFile(file, storageFileName);
 
                 FishFile fishFile = new FishFile();
                 fishFile.setFish(fish);
@@ -54,7 +49,7 @@ public class FishFileService {
                 storedFileNames.add(storageFileName);
             }
         } catch (IOException ex) {
-            removeSavedFiles(storedFileNames);
+            fileUtil.removeSavedFiles(storedFileNames);
             String errorText = "Error saving fish files: " + ex.getMessage();
             logger.error(errorText, ex);
             throw new CustomUncheckedException(errorText);
@@ -67,37 +62,7 @@ public class FishFileService {
         fishFileRepository.deleteAll(fishFiles);
 
         for (FishFile fishFile : fishFiles) {
-            removeFileFromStorage(fishFile.getFileName());
-        }
-    }
-
-    private String createUniqueFileName(Date catchDate, String originalFilename) {
-        return catchDate.getTime() + "_" + originalFilename;
-    }
-
-    private void saveFile(MultipartFile file, String storageFileName) throws IOException {
-        Path uploadPath = Paths.get(uploadDir);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-        try (InputStream inputStream = file.getInputStream()) {
-            Files.copy(inputStream, uploadPath.resolve(storageFileName), StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
-    private void removeFileFromStorage(String fileName) {
-        try {
-            Path filePath = Paths.get(uploadDir, fileName);
-            Files.deleteIfExists(filePath);
-            logger.info("Deleted file: {}", filePath);
-        } catch (IOException ex) {
-            logger.error("Failed to delete file: {}. Error: {}", fileName, ex.getMessage());
-        }
-    }
-
-    private void removeSavedFiles(List<String> storedFileNames) {
-        for (String fileName : storedFileNames) {
-            removeFileFromStorage(fileName);
+            fileUtil.removeFileFromStorage(fishFile.getFileName());
         }
     }
 }
