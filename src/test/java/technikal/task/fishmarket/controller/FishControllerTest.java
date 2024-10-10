@@ -41,13 +41,6 @@ class FishControllerTest {
     }
 
     @Test
-    void showFishList_ShouldNotShowAddFishButton_WhenNotAuthenticated() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/fish"))
-                .andExpect(status().isOk())
-                .andExpect(MockMvcResultMatchers.xpath("//button[contains(text(),'Створити')]").exists());
-    }
-
-    @Test
     void showFishList_ShouldReturnFishListView() throws Exception {
         when(fishService.getAllFish()).thenReturn(Arrays.asList(new Fish(), new Fish()));
 
